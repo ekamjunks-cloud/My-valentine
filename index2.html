@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>One Question</title>
+
+  <style>
+    body{
+      margin:0;
+      height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#d867af;
+      font-family: Arial, Helvetica, sans-serif;
+      color:#fff;
+      overflow:hidden;
+    }
+
+    .container{
+      text-align:center;
+      position:relative;
+      z-index:2;
+      width: min(720px, 92vw);
+    }
+
+    h1{ font-size: 2rem; margin-bottom: 18px; }
+
+    /* Button area needs to be a "playground" so NO can move */
+    .buttons{
+      position: relative;
+      height: 92px;                 /* gives room for movement */
+      margin-top: 18px;
+    }
+
+    /* YES stays in a normal spot */
+    #yesBtn{
+      position:absolute;
+      left: 50%;
+      transform: translateX(calc(-50% - 120px)); /* push left */
+      top: 12px;
+      padding: 20px 56px;   /* height + width */
+      font-size: 1.2rem;
+      color: #ffffff;   /* white */
+        background: #6e2ba9;    /* green */
+
+  border-color: #2289c5;
+    }
+
+    /* NO is movable */
+    #noBtn{
+      position:absolute;
+      left: 50%;
+      transform: translateX(calc(-50% + 120px)); /* start right */
+      top: 12px;
+      touch-action: none;
+    }
+
+    button{
+      padding:15px 40px;
+      font-size:1rem;
+      border-radius:30px;
+      border:1px solid #fff;
+      background:transparent;
+      color:#fff;
+      cursor:pointer;
+      transition: background .2s ease, color .2s ease, transform .2s ease;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover{
+      background:#fff;
+      color:#000;
+    }
+
+    /* --- The reactive mascot --- */
+    .mascot{
+      position:fixed;
+      left: 50%;
+      top: 18%;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 160px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgb(71, 161, 217);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+      display:grid;
+      place-items:center;
+      z-index:1;
+      user-select:none;
+    }
+
+    .face{ width: 110px; height: 110px; position: relative; }
+    .eye{
+      width: 46px; height: 46px; background: #fff; border-radius: 999px;
+      position:absolute; top: 30px;
+    }
+    .eye.left{ left: 10px; }
+    .eye.right{ right: 10px; }
+
+    .pupil{
+  width: 16px;
+  height: 16px;
+  background:#000;
+  border-radius: 999px;
+
+  position:absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);   /* neutral center */
+  transition: transform 80ms linear;
+}
+
+
+    .mouth{
+      position:absolute;
+      left: 50%;
+      top: 68px;
+      transform: translateX(-50%);
+      width: 36px;
+      height: 18px;
+      border: 3px solid #fff;
+      border-top: 0;
+      border-left: 0;
+      border-right: 0;
+      border-radius: 0 0 999px 999px;
+      opacity: .9;
+      transition: all 150ms ease;
+    }
+
+    .status{
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: .7;
+      text-align:center;
+      max-width: 220px;
+      line-height: 1.3;
+    }
+
+    .happy .mouth{ width: 44px; height: 24px; border-width: 4px; opacity: 1; }
+    .very-happy{
+      box-shadow: 0 18px 50px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.18);
+      border-color: rgba(255,255,255,0.35);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="mascot" id="mascot" aria-hidden="true">
+    <div>
+      <div class="face" id="face">
+       <div class="eye left" id="eyeL"><div class="pupil" id="pupilL"></div></div>
+       <div class="eye right" id="eyeR"><div class="pupil" id="pupilR"></div></div>
+
+        <div class="mouth"></div>
+      </div>
+      <div class="status" id="status">Try clicking “NO” 😈</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Do you accept the terms?</h1>
+
+    <div class="buttons" id="arena">
+      <button id="yesBtn" type="button" onclick="choose('Yes')">Yes</button>
+      <button id="noBtn"  type="button" onclick="choose('No')">No</button>
+    </div>
+  </div>
+
+  <script>
+    function choose(answer){
+      alert("You selected: " + answer);
+    }
+
+    // ---- Reactive mascot: happy near YES ----
+    const yesBtn   = document.getElementById("yesBtn");
+    const mascot   = document.getElementById("mascot");
+    const face     = document.getElementById("face");
+    const statusEl = document.getElementById("status");
+    const pupilL   = document.getElementById("pupilL");
+    const pupilR   = document.getElementById("pupilR");
+    const eyeL = document.getElementById("eyeL");
+    const eyeR = document.getElementById("eyeR");
+
+
+    const HAPPY_DISTANCE = 220;
+    const VERY_HAPPY_DISTANCE = 120;
+    const PUPIL_MAX_OFFSET = 12;
+
+    function centerOf(el){
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width/2, y: r.top + r.height/2 };
+    }
+    function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+    // ---- Runaway NO button ----
+    const arena = document.getElementById("arena");
+    const noBtn = document.getElementById("noBtn");
+
+    // Tune these:
+    const NO_ESCAPE_DISTANCE = 140;     // when cursor is closer than this, NO flees
+    const NO_PADDING = 8;              // keep it inside arena edges
+    const NO_SAFETY_RETRIES = 12;       // tries to find a far-enough spot
+
+    // Ensure NO button uses explicit left/top pixels after initial CSS transform
+    // so we can move it precisely.
+    function initNoPosition(){
+      const a = arena.getBoundingClientRect();
+      const n = noBtn.getBoundingClientRect();
+
+      // Convert current on-screen position to arena-local pixels
+      const left = n.left - a.left;
+      const top  = n.top  - a.top;
+
+      noBtn.style.transform = "none";
+      noBtn.style.left = left + "px";
+      noBtn.style.top  = top  + "px";
+    }
+
+    function randomSpotInsideArena(){
+      const a = arena.getBoundingClientRect();
+      const n = noBtn.getBoundingClientRect();
+
+      const maxX = a.width  - n.width  - NO_PADDING*2;
+      const maxY = a.height - n.height - NO_PADDING*2;
+
+      const x = NO_PADDING + Math.random() * Math.max(0, maxX);
+      const y = NO_PADDING + Math.random() * Math.max(0, maxY);
+
+      return { x, y };
+    }
+
+    function moveNoAwayFrom(cursorX, cursorY){
+      const a = arena.getBoundingClientRect();
+      const n = noBtn.getBoundingClientRect();
+
+      // Try a few random spots; pick one that is far from cursor (best effort)
+      let best = null;
+      let bestDist = -1;
+
+      for (let i = 0; i < NO_SAFETY_RETRIES; i++){
+        const spot = randomSpotInsideArena();
+        const spotCenterX = a.left + spot.x + n.width/2;
+        const spotCenterY = a.top  + spot.y + n.height/2;
+        const d = Math.hypot(cursorX - spotCenterX, cursorY - spotCenterY);
+
+        if (d > bestDist){
+          bestDist = d;
+          best = spot;
+        }
+        if (d > NO_ESCAPE_DISTANCE * 1.35) break; // good enough
+      }
+
+      if (!best) return;
+
+      noBtn.style.left = best.x + "px";
+      noBtn.style.top  = best.y + "px";
+    }
+
+    function movePupil(eyeEl, pupilEl, x, y){
+  const r = eyeEl.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top  + r.height / 2;
+
+  const dx = x - cx;
+  const dy = y - cy;
+
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+
+  const max = PUPIL_MAX_OFFSET; // increase this if needed
+  pupilEl.style.transform =
+  `translate(-50%, -50%) translate(${ux * max}px, ${uy * max}px)`;
+
+     }
+
+    // Main pointer tracking
+    function onPointerMove(clientX, clientY){
+        movePupil(eyeL, pupilL, clientX, clientY);
+        movePupil(eyeR, pupilR, clientX, clientY);
+
+ 
+
+      // Mood based on proximity to YES
+      const yes = centerOf(yesBtn);
+      const distYes = Math.hypot(clientX - yes.x, clientY - yes.y);
+
+      if (distYes <= VERY_HAPPY_DISTANCE){
+        face.classList.add("happy");
+        mascot.classList.add("very-happy");
+        statusEl.textContent = "YESSS 😄";
+      } else if (distYes <= HAPPY_DISTANCE){
+        face.classList.add("happy");
+        mascot.classList.remove("very-happy");
+        statusEl.textContent = "Closer to YES 🙂";
+      } else {
+        face.classList.remove("happy");
+        mascot.classList.remove("very-happy");
+        statusEl.textContent = "Try clicking “NO” 😈";
+      }
+
+      // NO runs away when cursor gets close
+      const no = centerOf(noBtn);
+      const distNo = Math.hypot(clientX - no.x, clientY - no.y);
+      if (distNo <= NO_ESCAPE_DISTANCE){
+        moveNoAwayFrom(clientX, clientY);
+      }
+    }
+
+    // Mouse
+    window.addEventListener("mousemove", (e) => onPointerMove(e.clientX, e.clientY));
+
+    // Touch (mobile)
+    window.addEventListener("touchmove", (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      const t = e.touches[0];
+      onPointerMove(t.clientX, t.clientY);
+    }, { passive: true });
+
+    // Init NO button position once layout is ready
+    window.addEventListener("load", () => {
+      initNoPosition();
+      // Optional: move NO once at start for fun
+      moveNoAwayFrom(window.innerWidth/2, window.innerHeight/2);
+    });
+
+    // If window resizes, re-init for correct bounds
+    window.addEventListener("resize", () => {
+      initNoPosition();
+    });
+  </script>
+</body>
+</html>
